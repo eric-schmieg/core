@@ -21,10 +21,14 @@ from homeassistant.helpers.schema_config_entry_flow import (
 
 from .const import (
     CONF_AC_MODE,
+    CONF_ADJUSTABLE_FAN,
     CONF_COLD_TOLERANCE,
     CONF_DUR_COOLDOWN,
+    CONF_FAN_MODES,
+    CONF_FAN_ONLY_ALLOWED,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
+    CONF_INITIAL_FAN_MODE,
     CONF_KEEP_ALIVE,
     CONF_MAX_DUR,
     CONF_MAX_TEMP,
@@ -34,10 +38,17 @@ from .const import (
     CONF_SENSOR,
     DEFAULT_TOLERANCE,
     DOMAIN,
+    FAN_MODES,
 )
 
 OPTIONS_SCHEMA = {
     vol.Required(CONF_AC_MODE): selector.BooleanSelector(
+        selector.BooleanSelectorConfig(),
+    ),
+    vol.Optional(CONF_FAN_ONLY_ALLOWED): selector.BooleanSelector(
+        selector.BooleanSelectorConfig(),
+    ),
+    vol.Optional(CONF_ADJUSTABLE_FAN): selector.BooleanSelector(
         selector.BooleanSelectorConfig(),
     ),
     vol.Required(CONF_SENSOR): selector.EntitySelector(
@@ -95,6 +106,19 @@ PRESETS_SCHEMA = {
     for v in CONF_PRESETS.values()
 }
 
+
+FAN_MODES_SCHEMA = {
+    vol.Optional(CONF_FAN_MODES): selector.SelectSelector(
+        selector.SelectSelectorConfig(options=list(FAN_MODES.values()), multiple=True)
+    )
+}
+
+INITIAL_FAN_MODE_SCHEMA = {
+    vol.Optional(CONF_INITIAL_FAN_MODE): selector.SelectSelector(
+        selector.SelectSelectorConfig(options=list(FAN_MODES.values()))
+    )
+}
+
 CONFIG_SCHEMA = {
     vol.Required(CONF_NAME): selector.TextSelector(),
     **OPTIONS_SCHEMA,
@@ -122,6 +146,8 @@ CONFIG_FLOW = {
         next_step="presets",
     ),
     "presets": SchemaFlowFormStep(vol.Schema(PRESETS_SCHEMA)),
+    "fan_modes": SchemaFlowFormStep(vol.Schema(FAN_MODES_SCHEMA)),
+    "initial_fan_mode": SchemaFlowFormStep(vol.Schema(INITIAL_FAN_MODE_SCHEMA)),
 }
 
 OPTIONS_FLOW = {

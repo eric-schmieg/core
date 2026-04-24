@@ -15,6 +15,9 @@ import voluptuous as vol
 
 from homeassistant.components.climate import (
     ATTR_PRESET_MODE,
+    FAN_HIGH,
+    FAN_LOW,
+    FAN_MEDIUM,
     PLATFORM_SCHEMA as CLIMATE_PLATFORM_SCHEMA,
     PRESET_NONE,
     ClimateEntity,
@@ -69,10 +72,14 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_AC_MODE,
+    CONF_ADJUSTABLE_FAN,
     CONF_COLD_TOLERANCE,
     CONF_DUR_COOLDOWN,
+    CONF_FAN_MODES,
+    CONF_FAN_ONLY_ALLOWED,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
+    CONF_INITIAL_FAN_MODE,
     CONF_KEEP_ALIVE,
     CONF_MAX_DUR,
     CONF_MAX_TEMP,
@@ -82,6 +89,7 @@ from .const import (
     CONF_SENSOR,
     DEFAULT_TOLERANCE,
     DOMAIN,
+    FAN_MODES,
     PLATFORMS,
 )
 
@@ -104,6 +112,10 @@ PLATFORM_SCHEMA_COMMON = vol.Schema(
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Required(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
+        vol.Optional(CONF_FAN_ONLY_ALLOWED): cv.boolean,
+        vol.Optional(CONF_ADJUSTABLE_FAN): cv.boolean,
+        vol.Optional(CONF_FAN_MODES): cv.multi_select(FAN_MODES),
+        vol.Optional(CONF_INITIAL_FAN_MODE): vol.In(FAN_MODES.values()),
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_DUR): cv.positive_time_period,
         vol.Optional(CONF_MAX_DUR): cv.positive_time_period,
@@ -115,7 +127,7 @@ PLATFORM_SCHEMA_COMMON = vol.Schema(
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
         vol.Optional(CONF_KEEP_ALIVE): cv.positive_time_period,
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
-            [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF]
+            [HVACMode.COOL, HVACMode.HEAT, HVACMode.FAN_ONLY, HVACMode.OFF]
         ),
         vol.Optional(CONF_PRECISION): vol.All(
             vol.Coerce(float),
@@ -176,6 +188,10 @@ async def _async_setup_config(
     max_temp: float | None = config.get(CONF_MAX_TEMP)
     target_temp: float | None = config.get(CONF_TARGET_TEMP)
     ac_mode: bool | None = config.get(CONF_AC_MODE)
+    fan_only_allowed: bool | None = config.get(CONF_FAN_ONLY_ALLOWED)
+    adjustable_fan: bool | None = config.get(CONF_ADJUSTABLE_FAN)
+    initial_fan_mode: str | None = config.get(CONF_INITIAL_FAN_MODE)
+    fan_modes: list[str] | None = config.get(CONF_FAN_MODES)
     min_cycle_duration: timedelta | None = config.get(CONF_MIN_DUR)
     max_cycle_duration: timedelta | None = config.get(CONF_MAX_DUR)
     cycle_cooldown: timedelta | None = config.get(CONF_DUR_COOLDOWN)
@@ -201,6 +217,10 @@ async def _async_setup_config(
                 max_temp=max_temp,
                 target_temp=target_temp,
                 ac_mode=ac_mode,
+                fan_only_allowed=fan_only_allowed,
+                adjustable_fan=adjustable_fan,
+                initial_fan_mode=initial_fan_mode,
+                fan_modes=fan_modes,
                 min_cycle_duration=min_cycle_duration,
                 max_cycle_duration=max_cycle_duration,
                 cycle_cooldown=cycle_cooldown,
@@ -234,6 +254,10 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         max_temp: float | None,
         target_temp: float | None,
         ac_mode: bool | None,
+        fan_only_allowed: bool | None,
+        adjustable_fan: bool | None,
+        initial_fan_mode: str | None = None,
+        fan_modes: list[str] | None = None,
         min_cycle_duration: timedelta | None,
         max_cycle_duration: timedelta | None,
         cycle_cooldown: timedelta | None,
@@ -256,6 +280,18 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
             heater_entity_id,
         )
         self.ac_mode = ac_mode
+        self.adjustable_fan = adjustable_fan
+        self.fan_only_allowed = fan_only_allowed
+        self._attr_fan_mode = initial_fan_mode
+        self._attr_fan_modes = (
+            list(fan_modes)
+            if fan_modes is not None
+            else [
+                FAN_LOW,
+                FAN_MEDIUM,
+                FAN_HIGH,
+            ]
+        )
         self.min_cycle_duration = min_cycle_duration or timedelta()
         self.max_cycle_duration = max_cycle_duration
         self.cycle_cooldown = cycle_cooldown or timedelta()
@@ -276,6 +312,8 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
             self._attr_hvac_modes = [HVACMode.COOL, HVACMode.OFF]
         else:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+        if self.fan_only_allowed:
+            self._attr_hvac_modes.append(HVACMode.FAN_ONLY)
         self._active = False
         self._cur_temp: float | None = None
         self._temp_lock = asyncio.Lock()
@@ -290,6 +328,8 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
             | ClimateEntityFeature.TURN_OFF
             | ClimateEntityFeature.TURN_ON
         )
+        if self.adjustable_fan:
+            self._attr_supported_features |= ClimateEntityFeature.FAN_MODE
         if len(presets):
             self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
             self._attr_preset_modes = [PRESET_NONE, *presets.keys()]
@@ -418,6 +458,8 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         """
         if self._hvac_mode == HVACMode.OFF:
             return HVACAction.OFF
+        if self._hvac_mode == HVACMode.FAN_ONLY:
+            return HVACAction.FAN
         if not self._is_device_active:
             return HVACAction.IDLE
         if self.ac_mode:
@@ -437,6 +479,8 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         elif hvac_mode == HVACMode.COOL:
             self._hvac_mode = HVACMode.COOL
             await self._async_control_heating(force=True)
+        elif hvac_mode == HVACMode.FAN_ONLY:
+            self._hvac_mode = HVACMode.FAN_ONLY
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
             if self._is_device_active:
@@ -473,6 +517,33 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
 
         # Get default temp from super class
         return super().max_temp
+
+    @property
+    def fan_mode(self) -> str | None:
+        """Return the fan mode."""
+        if self._attr_fan_mode is not None:
+            return self._attr_fan_mode
+        # Get default fan mode from super class
+        return super().fan_mode
+
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Set new target fan mode."""
+        if fan_mode not in FAN_MODES.values():
+            raise ValueError(
+                f"Got unsupported fan_mode {fan_mode}. Must be one of"
+                f" {list(FAN_MODES.values())}"
+            )
+        self._attr_fan_mode = fan_mode
+        await self._async_control_heating(force=True)
+        self.async_write_ha_state()
+
+    @property
+    def fan_modes(self) -> list[str] | None:
+        """Return the list of available fan modes."""
+        if self._attr_fan_modes is not None:
+            return self._attr_fan_modes
+        # Get default fan modes from super class
+        return super().fan_modes
 
     async def _async_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle temperature changes."""
