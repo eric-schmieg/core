@@ -1,0 +1,5 @@
+{
+  "domain": "general_electric",
+  "name": "General Electric",
+  "integrations": ["infrared", "stateless_ac_infrared"]
+}

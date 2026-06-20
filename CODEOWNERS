@@ -1715,6 +1715,8 @@ CLAUDE.md @home-assistant/core
 /tests/components/srp_energy/ @briglx
 /homeassistant/components/starline/ @anonym-tsk
 /tests/components/starline/ @anonym-tsk
+/homeassistant/components/stateless_ac_infrared/ @eric-schmieg
+/tests/components/stateless_ac_infrared/ @eric-schmieg
 /homeassistant/components/statistics/ @ThomDietrich @gjohansson-ST
 /tests/components/statistics/ @ThomDietrich @gjohansson-ST
 /homeassistant/components/steam_online/ @tkdrob

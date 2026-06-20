@@ -1,0 +1,76 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+      "no_emitters": "No infrared transmitters found. Please set up an infrared integration first."
+    },
+    "error": {
+      "invalid_temp_range": "Minimum temperature must be lower than maximum temperature.",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+    },
+    "step": {
+      "temperature_limits": {
+        "data": {
+          "max_temp": "Maximum Temperature",
+          "min_temp": "Minimum Temperature",
+          "temp_step": "Temperature Step"
+        },
+        "data_description": {
+          "max_temp": "Highest temperature the remote can set.",
+          "min_temp": "Lowest temperature the remote can set.",
+          "temp_step": "Increment between selectable temperatures."
+        },
+        "title": "Set temperature limits"
+      },
+      "user": {
+        "data": {
+          "infrared_entity_id": "Infrared Transmitter",
+          "remote_type": "Remote Type",
+          "temp_sensor": "Temperature Sensor",
+          "temperature_unit": "Temperature Unit"
+        },
+        "data_description": {
+          "infrared_entity_id": "The infrared transmitter entity to use for sending IR commands.",
+          "remote_type": "The type of infrared remote control used by the AC unit.",
+          "temp_sensor": "Optional sensor to use as the current temperature source.",
+          "temperature_unit": "Temperature unit used by this AC remote."
+        },
+        "title": "Set up Stateless AC Infrared"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "calibrate": {
+        "name": "Calibrate"
+      }
+    }
+  },
+  "selector": {
+    "remote_type": {
+      "options": {
+        "yae1k1": "YAE1K1",
+        "yae1k2": "YAE1K2"
+      }
+    },
+    "temp_step": {
+      "options": {
+        "step_0_1": "0.1°",
+        "step_0_5": "0.5°",
+        "step_1": "1°"
+      }
+    }
+  },
+  "services": {
+    "calibrate": {
+      "description": "Calibrates the AC unit by driving the hardware setpoint to its minimum then climbing to the target temperature.",
+      "fields": {
+        "target_temperature": {
+          "description": "Temperature to reach after calibration. Defaults to the entity's current target temperature.",
+          "name": "Target Temperature"
+        }
+      },
+      "name": "Calibrate"
+    }
+  }
+}

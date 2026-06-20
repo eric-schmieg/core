@@ -2442,6 +2442,17 @@
       "config_flow": true,
       "iot_class": "cloud_polling"
     },
+    "general_electric": {
+      "name": "General Electric",
+      "integrations": {
+        "stateless_ac_infrared": {
+          "integration_type": "device",
+          "config_flow": true,
+          "iot_class": "assumed_state",
+          "name": "Stateless AC Infrared"
+        }
+      }
+    },
     "generic": {
       "integration_type": "device",
       "config_flow": true,

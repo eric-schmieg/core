@@ -1,0 +1,16 @@
+calibrate:
+  target:
+    entity:
+      domain: climate
+      integration: stateless_ac_infrared
+  fields:
+    target_temperature:
+      required: false
+      example: 72
+      selector:
+        number:
+          min: 50
+          max: 95
+          step: 1
+          unit_of_measurement: "°F"
+          mode: box
