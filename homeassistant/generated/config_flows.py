@@ -722,6 +722,7 @@ FLOWS = {
         "srp_energy",
         "starline",
         "starlink",
+        "stateless_ac_infrared",
         "steam_online",
         "steamist",
         "stiebel_eltron",
